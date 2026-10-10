@@ -28,7 +28,7 @@
 'use strict';let token='',products=[],cart={};const ADMIN_WA='628226897579';let lastWaUrl='';
 const $=id=>document.getElementById(id);
 // GANTI URL di bawah dengan URL Web App Apps Script milikmu, lalu tambahkan ?bridge=1
-const GAS_BRIDGE_URL='https://script.google.com/macros/s/AKfycbxHvP9DGEscNCp5CT2lRRuBhBzLwHx0DPp0gOoyfcvL38Re_NHRU9ZgAr6r3QarMmk/exec/exec?bridge=1';
+const GAS_BRIDGE_URL='https://script.google.com/macros/s/AKfycbweqjbCz4JK2jgaeIq8_7rK_mtHfG3zWH2fj8h6AtVfkxLfgfEfwdoabJdd9kkkkjU/exec?bridge=1';
 const apiFrame=document.createElement('iframe');apiFrame.title='Koneksi aman ke backend';apiFrame.setAttribute('aria-hidden','true');apiFrame.style.cssText='position:fixed;width:1px;height:1px;left:-10px;bottom:-10px;opacity:0;border:0;pointer-events:none';
 let bridgeReadyResolve,bridgeReadyReject,bridgeReady=false;const pendingCalls=new Map();
 const bridgeReadyPromise=new Promise((resolve,reject)=>{bridgeReadyResolve=resolve;bridgeReadyReject=reject});
