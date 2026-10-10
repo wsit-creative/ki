@@ -27,7 +27,25 @@
 <script>
 'use strict';let token='',products=[],cart={};const ADMIN_WA='628226897579';let lastWaUrl='';
 const $=id=>document.getElementById(id);
-function call(action,p={}){return new Promise((resolve,reject)=>{if(!window.google?.script?.run){reject(Error('Buka halaman melalui URL Web App Apps Script, bukan file HTML langsung.'));return}google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(Error(e?.message||'Permintaan gagal'))).api(action,p)})}
+// GANTI URL di bawah dengan URL Web App Apps Script milikmu, lalu tambahkan ?bridge=1
+const GAS_BRIDGE_URL='https://script.google.com/macros/s/AKfycbytb_AF2dYMAx0PtyZHs8MIy8PJAJoBaDEiRAMBZkGgn8fbjNNqpHfUUg-brTVbLO0/exec?bridge=1';
+const apiFrame=document.createElement('iframe');apiFrame.title='Koneksi aman ke backend';apiFrame.setAttribute('aria-hidden','true');apiFrame.style.cssText='position:fixed;width:1px;height:1px;left:-10px;bottom:-10px;opacity:0;border:0;pointer-events:none';
+let bridgeReadyResolve,bridgeReadyReject,bridgeReady=false;const pendingCalls=new Map();
+const bridgeReadyPromise=new Promise((resolve,reject)=>{bridgeReadyResolve=resolve;bridgeReadyReject=reject});
+window.addEventListener('message',event=>{
+  if(event.source!==apiFrame.contentWindow)return;
+  const d=event.data||{};
+  if(d.type==='BRIDGE_READY'){bridgeReady=true;bridgeReadyResolve();return}
+  if(d.type==='API_RESPONSE'&&pendingCalls.has(d.id)){const p=pendingCalls.get(d.id);pendingCalls.delete(d.id);if(d.error)p.reject(Error(d.error));else p.resolve(d.result)}
+});
+if(!GAS_BRIDGE_URL.startsWith('PASTE_')){apiFrame.src=GAS_BRIDGE_URL;document.body.appendChild(apiFrame)}
+function call(action,p={}){return new Promise(async(resolve,reject)=>{
+  if(GAS_BRIDGE_URL.startsWith('PASTE_')){reject(Error('Koneksi backend belum diatur. Ikuti README: masukkan URL Web App Apps Script di index.html.'));return}
+  try{if(!bridgeReady)await Promise.race([bridgeReadyPromise,new Promise((_,rej)=>setTimeout(()=>rej(Error('Koneksi backend belum siap. Periksa URL Web App, deployment, dan GITHUB_PAGES_ORIGIN.')),20000))]);
+    const id=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));pendingCalls.set(id,{resolve,reject});apiFrame.contentWindow.postMessage({type:'API_REQUEST',id,action,payload:p},'*');
+    setTimeout(()=>{if(pendingCalls.has(id)){pendingCalls.delete(id);reject(Error('Backend tidak merespons. Coba muat ulang halaman.'))}},30000);
+  }catch(e){reject(e)}
+})}
 function toggle(a,b){$(a).classList.toggle('hidden');$(b).textContent=$(a).classList.contains('hidden')?'＋':'−'}
 function msg(id,t,type='info'){let el=$(id);el.innerHTML='';if(t){let d=document.createElement('div');d.className='status '+type;d.textContent=t;el.appendChild(d)}}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
