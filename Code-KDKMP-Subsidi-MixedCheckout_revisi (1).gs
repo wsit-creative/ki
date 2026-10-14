@@ -3,9 +3,9 @@
  * Spreadsheet tabs: Produk, Pesanan, BarangSubsidi, PenerimaSubsidi, RiwayatSubsidi.
  * Set Script Property KDKMP_ADMIN_TOKEN (min. 12 chars) before deploying.
  *
- * PENTING: verifikasi NIK via JSONP pada versi frontend ini hanya prototipe.
- * Jangan gunakan data NIK/KK nyata pada website publik sampai endpoint dipindahkan
- * ke backend/proxy same-origin yang aman dan memiliki kontrol akses/rate-limit.
+ * Identitas diverifikasi lewat POST iframe bridge agar NIK/KK tidak dikirim lewat URL.
+ * Endpoint Apps Script tetap perlu pembatasan akses/rate-limit sebelum dipakai untuk data
+ * penduduk nyata secara publik; jangan membagikan token admin atau kunci HMAC.
  */
 const CONFIG = {
   SPREADSHEET_ID: '1UwhelqYXgJe1bg_a8VjjhZHDsEYTzPdnWSE0aeRDemk',
@@ -28,7 +28,6 @@ function doGet(e) {
     let result;
     if(action==='products') result={ok:true,products:readProducts_()};
     else if(action==='subsidyProducts') result={ok:true,products:readSubsidyProducts_().map(publicSubsidyProduct_)};
-    else if(action==='subsidyFamilies') { requireAdmin_(params.token); result={ok:true,families:readSubsidyFamilies_()}; }
     else if(action==='verifySubsidy') result=verifySubsidy_(params.sku,params.identity,params.qty);
     else if(action==='orderStatus') {
       const id=clean_(params.id); if(!id) throw new Error('ID pesanan wajib diisi.');
@@ -40,10 +39,12 @@ function doGet(e) {
   } catch(err) { return output_({ok:false,error:String(err.message||err)},e&&e.parameter&&e.parameter.callback); }
 }
 function doPost(e) {
+  let payload={};
   try {
-    const payload=JSON.parse(e&&e.postData&&e.postData.contents||'{}');
+    const params=(e&&e.parameter)||{};
+    payload=params.payload?JSON.parse(params.payload):JSON.parse(e&&e.postData&&e.postData.contents||'{}');
     const action=clean_(payload.action);
-    if(['saveProduct','setActive','importProducts','saveSubsidyProduct','saveSubsidyFamily','setSubsidyProductActive','setSubsidyFamilyActive'].includes(action)) requireAdmin_(payload.token);
+    if(['saveProduct','setActive','importProducts','saveSubsidyProduct','saveSubsidyFamily','setSubsidyProductActive','setSubsidyFamilyActive','subsidyFamilies'].includes(action)) requireAdmin_(payload.token);
     let result;
     if(action==='saveProduct') result={ok:true,product:saveProduct_(payload.product||{})};
     else if(action==='setActive') result={ok:true,product:setActive_(payload.sku,payload.active)};
@@ -51,13 +52,27 @@ function doPost(e) {
     else if(action==='createOrder') result={ok:true,order:createOrder_(payload.order||{})};
     else if(action==='saveSubsidyProduct') result={ok:true,product:saveSubsidyProduct_(payload.product||{})};
     else if(action==='setSubsidyProductActive') result={ok:true,product:setSubsidyProductActive_(payload.sku,payload.active)};
-    else if(action==='setSubsidyFamilyActive') result={ok:true,family:setSubsidyFamilyActive_(payload.kk,payload.active)};
-    else if(action==='saveSubsidyFamily') result={ok:true,family:saveSubsidyFamily_(payload.kk,payload.familyName,payload.members)};
+    else if(action==='setSubsidyFamilyActive') result={ok:true,family:setSubsidyFamilyActive_(payload.familyId,payload.active)};
+    else if(action==='saveSubsidyFamily') result={ok:true,family:saveSubsidyFamily_(payload.kk,payload.familyName,payload.members,payload.replaceFamilyId)};
+    else if(action==='subsidyFamilies') result={ok:true,families:readSubsidyFamilies_()};
+    else if(action==='verifySubsidy') result=verifySubsidy_(payload.sku,payload.identity,payload.qty);
     else if(action==='createSubsidyOrder') result={ok:true,order:createSubsidyOrder_(payload.order||{})};
     else throw new Error('Aksi POST tidak dikenal.');
-    return json_(result);
-  } catch(err) { return json_({ok:false,error:String(err.message||err)}); }
+    return payload.transport==='iframe' ? iframeOutput_(result,payload.nonce) : json_(result);
+  } catch(err) {
+    const result={ok:false,error:String(err.message||err)};
+    return payload.transport==='iframe' ? iframeOutput_(result,payload.nonce) : json_(result);
+  }
 }
+
+function iframeOutput_(result,nonce) {
+  nonce=String(nonce||'');
+  if(!/^[A-Za-z0-9_-]{12,100}$/.test(nonce)) return json_(result);
+  const message=JSON.stringify({type:'KDKMP_API_RESULT',nonce,result}).replace(/</g,'\\u003c');
+  const html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>window.top.postMessage('+message+',"*");</script></body></html>';
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function setupKDKMP() {
   const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
   ss.setSpreadsheetTimeZone('Asia/Jakarta');
@@ -69,7 +84,19 @@ function setupKDKMP() {
   ensureSheet_(ss,CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);
   ss.getSheetByName(CONFIG.ORDER_SHEET).getRange('B:B').setNumberFormat('dd/MM/yyyy HH:mm:ss');
   ss.getSheetByName(CONFIG.SUBSIDY_HISTORY_SHEET).getRange('B:B').setNumberFormat('dd/MM/yyyy HH:mm:ss');
+  const migrated=migrateSensitiveData_();
   Logger.log('KDKMP siap: '+ss.getUrl());
+  Logger.log('Migrasi data identitas selesai. Baris keluarga: '+migrated.families+', baris riwayat: '+migrated.history+'.');
+}
+
+function migrateSensitiveData() {
+  // Jalankan manual satu kali setelah memperbarui Apps Script.
+  // Fungsi aman dijalankan ulang: nilai dengan awalan H1: tidak diproses ulang.
+  const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  ensureSheet_(ss,CONFIG.FAMILY_SHEET,FAMILY_HEADERS);
+  ensureSheet_(ss,CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);
+  const result=migrateSensitiveData_();
+  Logger.log('Migrasi selesai. Baris keluarga: '+result.families+', baris riwayat: '+result.history+'.');
 }
 
 function migrateProductSheet_(ss){
@@ -150,10 +177,64 @@ function createOrder_(o){
     const total=items.reduce((s,x)=>s+x.subtotal,0),sheetItems=items.map(({identity,kk,row,...item})=>item);
     orders.appendRow([id,new Date(),name,phone,address,note,JSON.stringify(sheetItems),total,'MENUNGGU KONFIRMASI ADMIN',deliveryDate,deliveryTime]);
     const history=getSheet_(CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);
-    items.forEach(it=>{if(it.isSubsidy){subSheet.getRange(it.row,6).setValue(subs[it.sku].stock-it.qty);history.appendRow([id,new Date(),it.sku,it.name,it.kk,it.identity,it.qty,it.price,it.subtotal,'MENUNGGU KONFIRMASI ADMIN']);}else{regularSheet.getRange(it.row,6).setValue(regular[it.sku].stock-it.qty);}});
+    items.forEach(it=>{if(it.isSubsidy){subSheet.getRange(it.row,6).setValue(subs[it.sku].stock-it.qty);history.appendRow([id,new Date(),it.sku,it.name,it.kk,sensitiveToken_(it.identity),it.qty,it.price,it.subtotal,'MENUNGGU KONFIRMASI ADMIN']);history.getRange(history.getLastRow(),5,1,2).setNumberFormat('@');}else{regularSheet.getRange(it.row,6).setValue(regular[it.sku].stock-it.qty);}});
     SpreadsheetApp.flush();return {id,total,status:'MENUNGGU KONFIRMASI ADMIN',items:items.length,subsidyItems:items.filter(x=>x.isSubsidy).length};
   }finally{lock.releaseLock();}
 }
+/**
+ * Identitas disimpan sebagai HMAC-SHA256 berkunci (pseudonimisasi), bukan enkripsi reversibel.
+ * Server dapat mencocokkan input, tetapi kode di sheet tidak dapat dikembalikan ke NIK/KK.
+ * Kunci hanya berada di Script Properties; jangan menghapus/mengganti properti ini.
+ */
+function sensitiveKey_() {
+  const props=PropertiesService.getScriptProperties();
+  let key=props.getProperty('KDKMP_SENSITIVE_HMAC_KEY');
+  if(!key) {
+    // Jangan diam-diam membuat kunci baru jika spreadsheet sudah berisi token HMAC lama.
+    const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    const f=ss.getSheetByName(CONFIG.FAMILY_SHEET),h=ss.getSheetByName(CONFIG.SUBSIDY_HISTORY_SHEET);
+    const hasTokens=(f&&f.getLastRow()>1&&f.getRange(2,1,f.getLastRow()-1,Math.min(3,Math.max(1,f.getLastColumn()))).getDisplayValues().some(r=>r.some(v=>/^H1:[A-Za-z0-9_-]+$/.test(String(v||'')))))||
+                    (h&&h.getLastRow()>1&&h.getRange(2,5,h.getLastRow()-1,2).getDisplayValues().some(r=>r.some(v=>/^H1:[A-Za-z0-9_-]+$/.test(String(v||'')))));
+    if(hasTokens) throw new Error('Kunci HMAC KDKMP hilang. Pulihkan KDKMP_SENSITIVE_HMAC_KEY dari cadangan; jangan membuat kunci baru.');
+    key=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+    props.setProperty('KDKMP_SENSITIVE_HMAC_KEY',key);
+  }
+  return key;
+}
+function sensitiveToken_(value) {
+  const raw=clean_(value);
+  const bytes=Utilities.computeHmacSha256Signature(raw,sensitiveKey_());
+  return 'H1:'+Utilities.base64EncodeWebSafe(bytes).replace(/=+$/,'');
+}
+function protectedValue_(value) {
+  const raw=clean_(value);
+  if(!raw) return '';
+  return /^H1:[A-Za-z0-9_-]+$/.test(raw) ? raw : sensitiveToken_(raw);
+}
+function migrateSensitiveData_() {
+  sensitiveKey_();
+  const family=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS);
+  const history=getSheet_(CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);
+  let familyCount=0,historyCount=0;
+  if(family.getLastRow()>1) {
+    const rows=family.getRange(2,1,family.getLastRow()-1,FAMILY_HEADERS.length).getDisplayValues();
+    rows.forEach((r,i)=>{
+      const kk=protectedValue_(r[0]),nik=protectedValue_(r[2]);
+      if(kk!==r[0]) { family.getRange(i+2,1).setNumberFormat('@').setValue(kk); familyCount++; }
+      if(nik!==r[2]) { family.getRange(i+2,3).setNumberFormat('@').setValue(nik); familyCount++; }
+    });
+  }
+  if(history.getLastRow()>1) {
+    const rows=history.getRange(2,1,history.getLastRow()-1,SUBSIDY_HISTORY_HEADERS.length).getDisplayValues();
+    rows.forEach((r,i)=>{
+      const kk=protectedValue_(r[4]),nik=protectedValue_(r[5]);
+      if(kk!==r[4]) { history.getRange(i+2,5).setNumberFormat('@').setValue(kk); historyCount++; }
+      if(nik!==r[5]) { history.getRange(i+2,6).setNumberFormat('@').setValue(nik); historyCount++; }
+    });
+  }
+  return {families:familyCount,history:historyCount};
+}
+
 /* SUBSIDI */
 function readSubsidyProducts_(){
  const sh=getSheet_(CONFIG.SUBSIDY_PRODUCT_SHEET,SUBSIDY_PRODUCT_HEADERS);if(sh.getLastRow()<2)return [];
@@ -170,32 +251,43 @@ function saveSubsidyProduct_(p){
  if(last>=2){const i=sh.getRange(2,1,last-1,1).getDisplayValues().findIndex(r=>String(r[0]).trim()===sku);if(i>=0)row=i+2;}if(!row)row=Math.max(2,last+1);
  sh.getRange(row,1,1,SUBSIDY_PRODUCT_HEADERS.length).setValues([[sku,name,product.category,price,image,stock,cool,max,product.active]]);return product;
 }
-function saveSubsidyFamily_(kk,familyName,members){
+function saveSubsidyFamily_(kk,familyName,members,replaceFamilyId){
  kk=clean_(kk);familyName=clean_(familyName);if(!/^\d{16}$/.test(kk))throw new Error('Nomor KK harus 16 digit.');
  if(!Array.isArray(members)||!members.length||members.length>30)throw new Error('Anggota keluarga tidak valid (maksimal 30).');
- const seen={};members.forEach(m=>{m.nik=clean_(m.nik);m.name=clean_(m.name);if(!/^\d{16}$/.test(m.nik)||!m.name||m.name.length>100)throw new Error('Setiap anggota wajib memiliki NIK 16 digit dan nama.');if(seen[m.nik])throw new Error('NIK anggota duplikat.');seen[m.nik]=true;});
- const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS),values=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getValues():[];
- // Replace all existing rows for this KK; retain other families.
- const keep=values.filter(r=>String(r[0])!==kk),now=new Date();
- const add=members.map(m=>[kk,familyName,m.nik,m.name,'AKTIF',now]);
+ const seen={};members.forEach(m=>{m.nik=clean_(m.nik).replace(/\D/g,'');m.name=clean_(m.name);if(!/^\d{16}$/.test(m.nik)||!m.name||m.name.length>100)throw new Error('Setiap anggota wajib memiliki NIK 16 digit dan nama.');if(seen[m.nik])throw new Error('NIK anggota duplikat.');seen[m.nik]=true;});
+ const kkToken=sensitiveToken_(kk);
+ if(replaceFamilyId&&String(replaceFamilyId)!==kkToken)throw new Error('Untuk mengedit keluarga, masukkan kembali nomor KK yang sama.');
+ const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS),values=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getDisplayValues():[];
+ const existing=values.filter(r=>protectedValue_(r[0])===kkToken);
+ const familyStatus=existing.length?(existing.some(r=>normalActive_(r[4])==='AKTIF')?'AKTIF':'NONAKTIF'):'AKTIF';
+ const keep=values.filter(r=>protectedValue_(r[0])!==kkToken),now=new Date();
+ const add=members.map(m=>[kkToken,familyName,sensitiveToken_(m.nik),m.name,familyStatus,now]);
  if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).clearContent();
- const combined=keep.concat(add);if(combined.length)sh.getRange(2,1,combined.length,FAMILY_HEADERS.length).setValues(combined);
- return {kkMasked:kk.slice(0,4)+'********'+kk.slice(-4),memberCount:members.length};
+ const combined=keep.concat(add);
+ if(combined.length)sh.getRange(2,1,combined.length,FAMILY_HEADERS.length).setValues(combined);
+ if(combined.length){sh.getRange(2,1,combined.length,1).setNumberFormat('@');sh.getRange(2,3,combined.length,1).setNumberFormat('@');}
+ return {kkMasked:'••••••••••••••••',memberCount:members.length};
 }
 
 function readSubsidyFamilies_(){
  const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS);if(sh.getLastRow()<2)return [];
- const vals=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getValues(),map={};
- vals.forEach(r=>{const kk=String(r[0]||'');if(!kk)return;if(!map[kk])map[kk]={kk,familyName:String(r[1]||''),members:[],active:'NONAKTIF'};map[kk].members.push({nik:String(r[2]||''),name:String(r[3]||'')});if(normalActive_(r[4])==='AKTIF')map[kk].active='AKTIF';});
- return Object.values(map).map(f=>({...f,kkMasked:f.kk.slice(0,4)+'********'+f.kk.slice(-4),memberCount:f.members.length}));
+ const vals=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getDisplayValues(),map={};
+ vals.forEach(r=>{
+   const kkToken=protectedValue_(r[0]);if(!kkToken)return;
+   if(!map[kkToken])map[kkToken]={familyId:kkToken,kkMasked:'••••••••••••••••',familyName:String(r[1]||''),memberCount:0,active:'NONAKTIF'};
+   map[kkToken].memberCount++;
+   if(normalActive_(r[4])==='AKTIF')map[kkToken].active='AKTIF';
+ });
+ return Object.values(map);
 }
-function setSubsidyProductActive_(sku,active){
- sku=clean_(sku);if(!sku)throw new Error('SKU wajib diisi.');const sh=getSheet_(CONFIG.SUBSIDY_PRODUCT_SHEET,SUBSIDY_PRODUCT_HEADERS);if(sh.getLastRow()<2)throw new Error('Belum ada barang subsidi.');
- const rows=sh.getRange(2,1,sh.getLastRow()-1,1).getDisplayValues(),i=rows.findIndex(r=>String(r[0]).trim()===sku);if(i<0)throw new Error('SKU subsidi tidak ditemukan.');sh.getRange(i+2,9).setValue(normalActive_(active));return readSubsidyProducts_().find(p=>p.sku===sku);
-}
-function setSubsidyFamilyActive_(kk,active){
- kk=clean_(kk);if(!/^\d{16}$/.test(kk))throw new Error('Nomor KK tidak valid.');const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS);if(sh.getLastRow()<2)throw new Error('Belum ada penerima subsidi.');
- const vals=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getValues();let count=0;vals.forEach((r,i)=>{if(String(r[0])===kk){sh.getRange(i+2,5).setValue(normalActive_(active));count++;}});if(!count)throw new Error('Nomor KK tidak ditemukan.');return {kkMasked:kk.slice(0,4)+'********'+kk.slice(-4),active:normalActive_(active)};
+function setSubsidyFamilyActive_(familyId,active){
+ familyId=clean_(familyId);
+ if(!/^H1:[A-Za-z0-9_-]+$/.test(familyId))throw new Error('ID keluarga tidak valid.');
+ const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS);if(sh.getLastRow()<2)throw new Error('Belum ada penerima subsidi.');
+ const vals=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getDisplayValues();let count=0;
+ vals.forEach((r,i)=>{if(protectedValue_(r[0])===familyId){sh.getRange(i+2,5).setValue(normalActive_(active));count++;}});
+ if(!count)throw new Error('Keluarga tidak ditemukan.');
+ return {kkMasked:'••••••••••••••••',active:normalActive_(active)};
 }
 function verifySubsidy_(sku,identity,qty){
  sku=clean_(sku);identity=clean_(identity).replace(/\D/g,'');qty=Number(qty);
@@ -215,14 +307,16 @@ function verifySubsidy_(sku,identity,qty){
 }
 function findFamilyByIdentity_(identity){
  const sh=getSheet_(CONFIG.FAMILY_SHEET,FAMILY_HEADERS);if(sh.getLastRow()<2)return null;
- const rows=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getValues();
- const r=rows.find(x=>String(x[0])===identity&&normalActive_(x[4])==='AKTIF')||rows.find(x=>String(x[2])===identity&&normalActive_(x[4])==='AKTIF');
- return r?{kk:String(r[0]),familyName:String(r[1]||'')}:null;
+ const rows=sh.getRange(2,1,sh.getLastRow()-1,FAMILY_HEADERS.length).getDisplayValues();
+ const token=sensitiveToken_(identity);
+ const r=rows.find(x=>protectedValue_(x[0])===token&&normalActive_(x[4])==='AKTIF')||
+         rows.find(x=>protectedValue_(x[2])===token&&normalActive_(x[4])==='AKTIF');
+ return r?{kk:protectedValue_(r[0]),familyName:String(r[1]||'')}:null;
 }
 function latestFamilyPurchase_(sku,kk){
  const sh=getSheet_(CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);if(sh.getLastRow()<2)return null;
  const rows=sh.getRange(2,1,sh.getLastRow()-1,SUBSIDY_HISTORY_HEADERS.length).getValues();
- const dates=rows.filter(r=>String(r[2])===sku&&String(r[4])===kk&&['DITERIMA','MENUNGGU KONFIRMASI ADMIN'].includes(String(r[9]))).map(r=>r[1] instanceof Date?r[1]:new Date(r[1])).filter(d=>!isNaN(d.getTime()));
+ const dates=rows.filter(r=>String(r[2])===sku&&protectedValue_(r[4])===kk&&['DITERIMA','MENUNGGU KONFIRMASI ADMIN'].includes(String(r[9]))).map(r=>r[1] instanceof Date?r[1]:new Date(r[1])).filter(d=>!isNaN(d.getTime()));
  return dates.length?new Date(Math.max(...dates.map(d=>d.getTime()))):null;
 }
 function createSubsidyOrder_(o){
@@ -244,7 +338,7 @@ function createSubsidyOrder_(o){
   if(idx<0)throw new Error('SKU subsidi tidak ditemukan.');
   // Status MENUNGGU KONFIRMASI tidak dihitung sebagai pembelian kuota sampai admin menyetujui.
   // Stok tidak dikurangi di sini; petugas harus mengonfirmasi ketersediaan fisik.
-  hist.appendRow([id,new Date(),sku,p.name,family.kk,identity,qty,p.price,p.price*qty,'MENUNGGU KONFIRMASI ADMIN']);
+  hist.appendRow([id,new Date(),sku,p.name,family.kk,sensitiveToken_(identity),qty,p.price,p.price*qty,'MENUNGGU KONFIRMASI ADMIN']);hist.getRange(hist.getLastRow(),5,1,2).setNumberFormat('@');
   SpreadsheetApp.flush();return {id,total:p.price*qty,status:'MENUNGGU KONFIRMASI ADMIN'};
  }finally{lock.releaseLock();}
 }
