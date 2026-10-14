@@ -141,15 +141,19 @@ function createOrder_(o){
   const lock=LockService.getScriptLock();lock.waitLock(30000);
   try{
     const orders=getSheet_(CONFIG.ORDER_SHEET,ORDER_HEADERS);if(orders.getLastRow()>=2&&orders.getRange(2,1,orders.getLastRow()-1,1).getDisplayValues().some(r=>String(r[0])===id))return {id,duplicate:true};
-    const sh=getSheet_(CONFIG.PRODUCT_SHEET,PRODUCT_HEADERS),rows=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,PRODUCT_HEADERS.length).getValues():[],bySku={};
-    rows.forEach((r,i)=>{const sku=clean_(r[0]);if(sku)bySku[sku]={row:i+2,sku,name:String(r[1]||''),price:Number(r[3])||0,stock:Math.max(0,Math.floor(Number(r[5])||0)),active:normalActive_(r[6])};});
-    const requested={};o.items.forEach(it=>{const sku=clean_(it.sku),qty=Number(it.qty);if(!sku||!Number.isInteger(qty)||qty<1)throw new Error('Jumlah/SKU barang tidak valid.');requested[sku]=(requested[sku]||0)+qty;});
-    const items=Object.keys(requested).map(sku=>{const p=bySku[sku],qty=requested[sku];if(!p||p.active!=='AKTIF'||p.stock<qty)throw new Error('Produk tidak tersedia atau stok tidak cukup: '+sku);return {sku,name:p.name,qty,unit:'pcs',price:p.price,subtotal:p.price*qty};});
-    const total=items.reduce((s,x)=>s+x.subtotal,0);orders.appendRow([id,new Date(),name,phone,address,note,JSON.stringify(items),total,'MENUNGGU KONFIRMASI ADMIN',deliveryDate,deliveryTime]);
-    items.forEach(it=>{const p=bySku[it.sku];sh.getRange(p.row,6).setValue(p.stock-it.qty);});SpreadsheetApp.flush();return {id,total,status:'MENUNGGU KONFIRMASI ADMIN'};
+    const regularSheet=getSheet_(CONFIG.PRODUCT_SHEET,PRODUCT_HEADERS),regularRows=regularSheet.getLastRow()>1?regularSheet.getRange(2,1,regularSheet.getLastRow()-1,PRODUCT_HEADERS.length).getValues():[],regular={};
+    regularRows.forEach((r,i)=>{const sku=clean_(r[0]);if(sku)regular[sku]={row:i+2,sku,name:String(r[1]||''),price:Number(r[3])||0,stock:Math.max(0,Math.floor(Number(r[5])||0)),active:normalActive_(r[6])};});
+    const subSheet=getSheet_(CONFIG.SUBSIDY_PRODUCT_SHEET,SUBSIDY_PRODUCT_HEADERS),subRows=subSheet.getLastRow()>1?subSheet.getRange(2,1,subSheet.getLastRow()-1,SUBSIDY_PRODUCT_HEADERS.length).getValues():[],subs={};
+    subRows.forEach((r,i)=>{const sku=clean_(r[0]);if(sku)subs[sku]={row:i+2,sku,name:String(r[1]||''),price:Number(r[3])||0,stock:Math.max(0,Math.floor(Number(r[5])||0)),cooldownDays:Math.max(1,Math.floor(Number(r[6])||1)),maxOrder:Math.max(1,Math.floor(Number(r[7])||1)),active:normalActive_(r[8])};});
+    const requested={},items=[];
+    o.items.forEach(it=>{const sku=clean_(it.sku),qty=Number(it.qty),isSubsidy=it.isSubsidy===true;if(!sku||!Number.isInteger(qty)||qty<1)throw new Error('Jumlah/SKU barang tidak valid.');const key=(isSubsidy?'SUB:':'REG:')+sku;requested[key]=(requested[key]||0)+qty;if(isSubsidy){const p=subs[sku],identity=clean_(it.identity).replace(/\D/g,'');if(!p||p.active!=='AKTIF'||p.stock<qty)throw new Error('Barang subsidi tidak tersedia atau stok tidak cukup: '+sku);if(!/^\d{16}$/.test(identity))throw new Error('NIK subsidi belum diverifikasi.');if(qty>p.maxOrder)throw new Error('Jumlah barang subsidi melebihi kuota.');const family=findFamilyByIdentity_(identity);if(!family)throw new Error('NIK/KK tidak terdaftar sebagai penerima subsidi.');const last=latestFamilyPurchase_(sku,family.kk);if(last&&Date.now()-last.getTime()<p.cooldownDays*86400000)throw new Error('Kuota keluarga untuk '+p.name+' sudah digunakan atau masih dalam masa tunggu.');items.push({sku,name:p.name,qty,unit:'pcs',price:p.price,subtotal:p.price*qty,isSubsidy:true,identity,kk:family.kk,row:p.row});}else{const p=regular[sku];if(!p||p.active!=='AKTIF'||p.stock<qty)throw new Error('Produk tidak tersedia atau stok tidak cukup: '+sku);items.push({sku,name:p.name,qty,unit:'pcs',price:p.price,subtotal:p.price*qty,isSubsidy:false,row:p.row});}});
+    const total=items.reduce((s,x)=>s+x.subtotal,0),sheetItems=items.map(({identity,kk,row,...item})=>item);
+    orders.appendRow([id,new Date(),name,phone,address,note,JSON.stringify(sheetItems),total,'MENUNGGU KONFIRMASI ADMIN',deliveryDate,deliveryTime]);
+    const history=getSheet_(CONFIG.SUBSIDY_HISTORY_SHEET,SUBSIDY_HISTORY_HEADERS);
+    items.forEach(it=>{if(it.isSubsidy){subSheet.getRange(it.row,6).setValue(subs[it.sku].stock-it.qty);history.appendRow([id,new Date(),it.sku,it.name,it.kk,it.identity,it.qty,it.price,it.subtotal,'MENUNGGU KONFIRMASI ADMIN']);}else{regularSheet.getRange(it.row,6).setValue(regular[it.sku].stock-it.qty);}});
+    SpreadsheetApp.flush();return {id,total,status:'MENUNGGU KONFIRMASI ADMIN',items:items.length,subsidyItems:items.filter(x=>x.isSubsidy).length};
   }finally{lock.releaseLock();}
 }
-
 /* SUBSIDI */
 function readSubsidyProducts_(){
  const sh=getSheet_(CONFIG.SUBSIDY_PRODUCT_SHEET,SUBSIDY_PRODUCT_HEADERS);if(sh.getLastRow()<2)return [];
