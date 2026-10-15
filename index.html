@@ -308,16 +308,28 @@ function createOrderId(){return"KDKMP-"+Date.now().toString(36).toUpperCase()+"-
 
 initDeliveryDate();
 setInterval(refreshDeliverySlots,30000);
-$("checkoutForm").addEventListener("submit",async e=>{e.preventDefault();const entries=Object.entries(cart);if(!entries.length)return toast("Keranjang masih kosong.");let issues=[];for(const[key,it]of entries){const p=cartProduct(key);if(!p||Number(p.stock)<it.qty||(p.active&&p.active==="NONAKTIF"))issues.push(`${p?.name||key} tidak tersedia/stok tidak cukup`);else if(it.isSubsidy&&!it.identity)issues.push(`${p.name} belum diverifikasi NIK`);else if(it.qty>(it.isSubsidy?Math.min(p.maxOrder,p.stock):p.maxOrder||p.stock))issues.push(`${p.name} melebihi batas pembelian`)}if(issues.length)return toast(issues.join("; "));const name=clean($("customerName").value),address=clean($("customerAddress").value),note=clean($("customerNote").value),deliveryDate=clean($("deliveryDate").value),deliveryTime=clean($("deliveryTime").value);if(!deliveryDate||!deliveryTime)return toast("Pilih tanggal dan jam pengiriman.");const rawPhone=clean($("customerPhone").value);let phoneDigits=rawPhone.replace(/\D/g,"");if(phoneDigits.startsWith("0"))phoneDigits="62"+phoneDigits.slice(1);else if(phoneDigits.startsWith("8"))phoneDigits="62"+phoneDigits;if(!name||!address)return toast("Lengkapi nama dan alamat penerima.");if(!/^62\d{8,13}$/.test(phoneDigits))return toast("Nomor WhatsApp belum valid. Contoh: 081234567890.");whatsappPhone="+"+phoneDigits;const orderId=createOrderId(),items=entries.map(([key,it])=>{const p=cartProduct(key);return{sku:p.sku,name:p.name,qty:it.qty,unit:'pcs',price:Number(p.price)||0,subtotal:(Number(p.price)||0)*it.qty,isSubsidy:it.isSubsidy,identity:it.identity||''}}),total=items.reduce((s,x)=>s+x.subtotal,0);const divider="_".repeat(50);const addressLines=address.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const structuredAddress=addressLines.some(x=>/^(Jalan|Desa\/Kelurahan|Kecamatan|Kabupaten\/Kota|Provinsi|Kode pos|Dusun\/RT\/RW|Koordinat GPS|Link Google Maps):/i.test(x));const lines=["*PESANAN KDKMP*",`Nomor Pesanan: ${orderId}`,`Nama: ${name}`,`WhatsApp: ${whatsappPhone}`,`Tanggal Pengiriman: ${deliveryDate}`,`Jam Pengiriman: ${deliveryTime}`,"",divider,"","*Daftar Belanja:*",...items.map(x=>`- ${x.name}${x.isSubsidy?' [BARANG SUBSIDI]':''} × ${x.qty} ${x.unit} | ${money(x.price)} × ${x.qty} = ${money(x.subtotal)}`),`*Total: ${money(total)}*`,"",divider,"",...(structuredAddress?addressLines:[`Alamat: ${address}`]),...(note?["",`Catatan: ${note}`]:[]),"","Status: PESANAN ANDA SEDANG DISIAPKAN","Mohon untuk berada di lokasi pada waktu yang dipilih. Terima kasih 😊"];const target=CONFIG.ADMIN_WHATSAPP.replace(/\D/g,"");if(!/^62\d{8,13}$/.test(target))return toast("Nomor WhatsApp admin belum dikonfigurasi dengan benar.");const waUrl="https://wa.me/"+target+"?text="+encodeURIComponent(lines.join("\n"));const waWindow=window.open("about:blank","_blank");const btn=$("checkoutButton");btn.disabled=true;btn.textContent="Menyimpan pesanan…";let saved=false;try{await apiWrite({action:"createOrder",order:{id:orderId,name,whatsapp:phoneDigits,address,note,deliveryDate,deliveryTime,items:items.map(x=>({sku:x.sku,qty:x.qty,isSubsidy:x.isSubsidy,identity:x.identity}))}});for(let attempt=0;attempt<3&&!saved;attempt++){if(attempt)await new Promise(resolve=>setTimeout(resolve,700));const check=await fetch(apiUrl("orderStatus",{id:orderId}),{cache:"no-store"});if(check.ok){const result=await check.json();saved=!!result.exists}}}catch(err){console.error(err)}finally{btn.textContent="BUAT PESANAN";btn.disabled=false}
-cart={};renderCart();$("checkoutForm").reset();initDeliveryDate();refreshDeliverySlots(true);$("locationStatus").textContent="Gunakan lokasi untuk mengisi alamat dan tautan Google Maps secara otomatis.";$("useCurrentLocation").disabled=false;$("useCurrentLocation").classList.remove("is-loading");$("useCurrentLocation").textContent="📍 Gunakan Lokasi Saat Ini";closeCart();if(waWindow&&!waWindow.closed){
-  waWindow.location.href=waUrl;
-  toast(saved?"Pesanan tersimpan, stok diperbarui, dan WhatsApp dibuka. Halaman akan disegarkan…":"Rekap WhatsApp dibuka. Penyimpanan belum terverifikasi; halaman akan disegarkan…");
-  // Muat ulang katalog setelah server sempat menyelesaikan penulisan pesanan/stok.
-  setTimeout(()=>window.location.reload(),1400);
-}else{
-  // Jika popup diblokir, tetap buka WhatsApp di tab ini sebagai fallback.
-  window.location.href=waUrl;
-}
+$("checkoutForm").addEventListener("submit",async e=>{e.preventDefault();const entries=Object.entries(cart);if(!entries.length)return toast("Keranjang masih kosong.");let issues=[];for(const[key,it]of entries){const p=cartProduct(key);if(!p||Number(p.stock)<it.qty||(p.active&&p.active==="NONAKTIF"))issues.push(`${p?.name||key} tidak tersedia/stok tidak cukup`);else if(it.isSubsidy&&!it.identity)issues.push(`${p.name} belum diverifikasi NIK`);else if(it.qty>(it.isSubsidy?Math.min(p.maxOrder,p.stock):p.maxOrder||p.stock))issues.push(`${p.name} melebihi batas pembelian`)}if(issues.length)return toast(issues.join("; "));const name=clean($("customerName").value),address=clean($("customerAddress").value),note=clean($("customerNote").value),deliveryDate=clean($("deliveryDate").value),deliveryTime=clean($("deliveryTime").value);if(!deliveryDate||!deliveryTime)return toast("Pilih tanggal dan jam pengiriman.");const rawPhone=clean($("customerPhone").value);let phoneDigits=rawPhone.replace(/\D/g,"");if(phoneDigits.startsWith("0"))phoneDigits="62"+phoneDigits.slice(1);else if(phoneDigits.startsWith("8"))phoneDigits="62"+phoneDigits;if(!name||!address)return toast("Lengkapi nama dan alamat penerima.");if(!/^62\d{8,13}$/.test(phoneDigits))return toast("Nomor WhatsApp belum valid. Contoh: 081234567890.");whatsappPhone="+"+phoneDigits;const orderId=createOrderId(),items=entries.map(([key,it])=>{const p=cartProduct(key);return{sku:p.sku,name:p.name,qty:it.qty,unit:'pcs',price:Number(p.price)||0,subtotal:(Number(p.price)||0)*it.qty,isSubsidy:it.isSubsidy,identity:it.identity||''}}),total=items.reduce((s,x)=>s+x.subtotal,0);const divider="_".repeat(80);const addressLines=address.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const structuredAddress=addressLines.some(x=>/^(Jalan|Desa\/Kelurahan|Kecamatan|Kabupaten\/Kota|Provinsi|Kode pos|Dusun\/RT\/RW|Koordinat GPS|Link Google Maps):/i.test(x));const lines=["*PESANAN KDKMP*",`Nomor Pesanan: ${orderId}`,`Nama: ${name}`,`WhatsApp: ${whatsappPhone}`,`Tanggal Pengiriman: ${deliveryDate}`,`Jam Pengiriman: ${deliveryTime}`,"",divider,"","*Daftar Belanja:*",...items.map(x=>`- ${x.name}${x.isSubsidy?' [BARANG SUBSIDI]':''} × ${x.qty} ${x.unit} | ${money(x.price)} × ${x.qty} = ${money(x.subtotal)}`),`*Total: ${money(total)}*`,"",divider,"",...(structuredAddress?addressLines:[`Alamat: ${address}`]),...(note?["",`Catatan: ${note}`]:[]),"","Status: PESANAN ANDA SEDANG DISIAPKAN","Mohon untuk berada di *lokasi* pada *waktu* yang Anda pilih karena kurir kami akan segera mengirimkan pesanan Anda. Terima kasih😊"];const target=CONFIG.ADMIN_WHATSAPP.replace(/\D/g,"");if(!/^62\d{8,13}$/.test(target))return toast("Nomor WhatsApp admin belum dikonfigurasi dengan benar.");const waUrl="https://wa.me/"+target+"?text="+encodeURIComponent(lines.join("\n"));
+const waWindow=window.open("about:blank","_blank");
+const btn=$("checkoutButton");btn.disabled=true;btn.textContent="Memeriksa stok & menyimpan…";
+let result=null;
+try{
+  // Gunakan iframe bridge agar respons server (berhasil/gagal) benar-benar terbaca.
+  result=await postSubsidyRequest({action:"createOrder",order:{id:orderId,name,whatsapp:phoneDigits,address,note,deliveryDate,deliveryTime,items:items.map(x=>({sku:x.sku,qty:x.qty,isSubsidy:x.isSubsidy,identity:x.identity}))}},30000);
+  if(!result||!result.ok)throw new Error(result?.error||"Pesanan belum berhasil disimpan.");
+  cart={};renderCart();$("checkoutForm").reset();initDeliveryDate();refreshDeliverySlots(true);
+  $("locationStatus").textContent="Gunakan lokasi untuk mengisi alamat dan tautan Google Maps secara otomatis.";
+  $("useCurrentLocation").disabled=false;$("useCurrentLocation").classList.remove("is-loading");$("useCurrentLocation").textContent="📍 Gunakan Lokasi Saat Ini";closeCart();
+  if(waWindow&&!waWindow.closed){waWindow.location.href=waUrl;}else{window.location.href=waUrl;}
+  toast("Pesanan tersimpan dan stok diperbarui.");
+  // Ambil stok terbaru segera; pembeli lain tidak perlu memuat ulang halaman.
+  setTimeout(()=>{loadProducts();loadSubsidy();},300);
+}catch(err){
+  console.error(err);
+  if(waWindow&&!waWindow.closed)waWindow.close();
+  toast(err.message||"Pesanan gagal disimpan. Keranjang tetap tersimpan; periksa stok lalu coba lagi.");
+  // Keranjang sengaja tidak dikosongkan dan WhatsApp tidak dikirim jika server menolak pesanan.
+}finally{btn.textContent="BUAT PESANAN";btn.disabled=false}
+
 });
 
 function setConnection(ok,msg){$("connectionDot").classList.toggle("ok",ok);$("connectionText").textContent=msg}
@@ -398,6 +410,10 @@ async function useCurrentLocation(){
 $("useCurrentLocation").addEventListener("click",useCurrentLocation);
 
 readEntry();loadProducts();renderCart();
+// Sinkronisasi stok berkala untuk semua pelanggan yang sedang membuka katalog.
+let stockRefreshBusy=false;
+setInterval(async()=>{if(stockRefreshBusy||document.visibilityState==="hidden")return;stockRefreshBusy=true;try{await Promise.all([loadProducts(),loadSubsidy()]);}finally{stockRefreshBusy=false}},8000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){loadProducts();loadSubsidy();}});
 
 /* === KDKMP SUBSIDI ADD-ON ===
    Identitas dikirim melalui POST, bukan query URL. Respons dibaca melalui iframe bridge.
