@@ -100,35 +100,6 @@ body{background:linear-gradient(180deg,#fff 0%,#fff8f8 44%,#fff 100%);color:var(
     <div class="pagination" id="pagination"></div>
   </section>
 
-  <!-- Barang biasa dan subsidi ditampilkan dalam satu katalog; pengelolaan admin tetap terpisah. -->
-
-  <section class="adminpanel" id="adminPanel">
-    <h2>Dashboard Admin Produk Biasa</h2>
-    <p style="color:var(--muted);font-size:13px">Kelola katalog barang biasa. Panel subsidi dan penerima subsidi tersedia terpisah di bawah.</p>
-    <label class="field" style="max-width:420px;margin:12px 0">Token Admin<input id="adminToken" type="password" autocomplete="current-password" placeholder="Masukkan token admin"></label>
-    <div class="adminform">
-      <label class="field">SKU<input id="aSku" placeholder="SKU-0001"></label><label class="field">Nama Barang<input id="aName" placeholder="Nama produk"></label><label class="field">Kategori<input id="aCategory" placeholder="Sembako"></label>
-      <label class="field">Harga (Rp)<input id="aPrice" type="number" min="0" placeholder="15000"></label><label class="field">Image_URL (HTTPS)<input id="aImage" type="url" placeholder="https://..."><small>Gunakan link gambar langsung.</small></label><label class="field">Stok<input id="aStock" type="number" min="0" step="1" value="0"></label>
-      <label class="field">Aktif<select id="aActive"><option value="AKTIF">AKTIF</option><option value="NONAKTIF">NONAKTIF</option></select></label>
-    </div>
-    <div class="adminactions"><button class="primary" id="saveProduct">Simpan Produk</button><button class="secondary" id="clearProductForm">Kosongkan Form</button><button class="secondary" id="exportCsv">Ekspor CSV</button><label class="secondary" style="cursor:pointer">Import CSV<input id="importCsv" type="file" accept=".csv,text/csv" hidden></label></div>
-    <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aktif</th><th>Aksi</th></tr></thead><tbody id="adminRows"></tbody></table></div>
-  </section>
-  <section class="adminpanel" id="subsidyProductPanel">
-    <h2>Panel Barang Subsidi</h2><p style="color:var(--muted);font-size:13px">Panel terpisah dengan token sendiri. Token yang digunakan tetap sama dengan token admin KDKMP.</p>
-    <label class="field" style="max-width:420px;margin:12px 0">Token Panel Barang Subsidi<input id="subsidyProductToken" type="password" autocomplete="current-password" placeholder="Masukkan token admin"></label>
-    <div class="adminform"><label class="field">SKU Subsidi<input id="sSku" placeholder="SUB-LPG-3KG"></label><label class="field">Nama Barang<input id="sName" placeholder="LPG 3 kg"></label><label class="field">Kategori<input id="sCategory" placeholder="Energi"></label><label class="field">Harga (Rp)<input id="sPrice" type="number" min="0"></label><label class="field">URL Gambar HTTPS<input id="sImage" type="url" placeholder="https://..."></label><label class="field">Stok<input id="sStock" type="number" min="0" step="1" value="0"></label><label class="field">Cooldown (hari)<input id="sCooldown" type="number" min="1" step="1" value="7"></label><label class="field">Maks. beli per cooldown<input id="sMaxOrder" type="number" min="1" step="1" value="1"></label><label class="field">Aktif<select id="sActive"><option value="AKTIF">AKTIF</option><option value="NONAKTIF">NONAKTIF</option></select></label></div>
-    <div class="adminactions"><button class="primary" id="saveSubsidyProduct" type="button">Simpan Barang Subsidi</button><button class="secondary" id="clearSubsidyProduct" type="button">Kosongkan Form</button><button class="secondary" id="reloadSubsidy" type="button">Muat Ulang Subsidi</button></div>
-    <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Barang</th><th>Harga</th><th>Stok</th><th>Aturan</th><th>Aktif</th><th>Aksi</th></tr></thead><tbody id="subsidyAdminRows"></tbody></table></div>
-  </section>
-  <section class="adminpanel" id="subsidyRecipientPanel">
-    <h2>Panel Penerima Subsidi</h2><p style="color:var(--muted);font-size:13px">Kelola KK dan anggota keluarga. Data identitas bersifat pribadi; batasi akses panel dan spreadsheet.</p>
-    <label class="field" style="max-width:420px;margin:12px 0">Token Panel Penerima Subsidi<input id="recipientToken" type="password" autocomplete="current-password" placeholder="Masukkan token admin"></label>
-    <div class="adminform"><label class="field">Nomor KK (16 digit)<input id="sFamilyKK" inputmode="numeric" maxlength="16" placeholder="16 digit nomor KK"></label><label class="field">Nama kepala keluarga (opsional)<input id="sFamilyName" maxlength="100" placeholder="Nama kepala keluarga"></label></div>
-    <div id="familyMembers"></div><div class="adminactions"><button class="secondary" id="addFamilyMember" type="button">＋ Tambah Anggota Keluarga</button><button class="primary" id="saveFamily" type="button">Simpan Penerima Subsidi</button><button class="secondary" id="clearFamily" type="button">Kosongkan Form</button><button class="secondary" id="reloadFamilies" type="button">Muat Ulang Penerima</button></div>
-    <div class="tablewrap"><table><thead><tr><th>KK (disamarkan)</th><th>Nama Kepala Keluarga</th><th>Jumlah anggota</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="familyAdminRows"></tbody></table></div>
-  </section>
-  <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:25px"><button class="adminlink" id="adminToggle">Buka panel admin produk biasa</button><button class="adminlink" id="subsidyProductToggle">Buka panel barang subsidi</button><button class="adminlink" id="recipientToggle">Buka panel penerima subsidi</button></div>
 </main>
 
 <footer class="site-footer">
@@ -141,7 +112,7 @@ body{background:linear-gradient(180deg,#fff 0%,#fff8f8 44%,#fff 100%);color:var(
     </div>
     <div class="footer-contact">
       <h3>Kontak Kami</h3>
-<a href="https://wa.me/6282338804175" target="_blank" rel="noopener noreferrer">
+      <a href="https://wa.me/6282338804175" target="_blank" rel="noopener noreferrer">
         <span class="contact-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
@@ -202,9 +173,8 @@ body{background:linear-gradient(180deg,#fff 0%,#fff8f8 44%,#fff 100%);color:var(
 </div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-/* KDKMP Belanja Desa — katalog dan dashboard terhubung ke Apps Script.
-   Jangan menanam token admin di file ini; token dimasukkan oleh admin saat diperlukan.
-   Jika deployment Apps Script menghasilkan URL /exec baru, ganti CONFIG.APPS_SCRIPT_URL. */
+/* KDKMP Belanja Desa — katalog pelanggan terhubung ke Apps Script.
+   File customer hanya memuat fitur katalog, verifikasi subsidi pelanggan, keranjang, dan pesanan. */
 
 const CONFIG={
 
@@ -228,10 +198,7 @@ const DELIVERY_SLOTS=[
   {start:11,label:"11.00 - 12.00 WIB"},
   {start:12,label:"12.00 - 13.00 WIB"},
   {start:13,label:"13.00 - 14.00 WIB"},
-  {start:14,label:"14.00 - 15.00 WIB"},
-  {start:15,label:"15.00 - 16.00 WIB"},
-  {start:16,label:"16.00 - 17.00 WIB"},
-  {start:17,label:"17.00 - 18.00 WIB"}
+  {start:14,label:"14.00 - 15.00 WIB"}
 ];
 function wibNow(){
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
@@ -300,7 +267,7 @@ const clean=s=>String(s??"").trim();
 
 let products=demoProducts.map(p=>({...p}));
 
-let cart={};let category="Semua";let page=1;let query="";let editingSku=null;let whatsappPhone="";let fromWhatsApp=true;let debounceTimer;
+let cart={};let category="Semua";let page=1;let query="";let whatsappPhone="";let fromWhatsApp=true;let debounceTimer;
 
 function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>$("toast").classList.remove("show"),3000)}
 
@@ -356,31 +323,10 @@ cart={};renderCart();$("checkoutForm").reset();initDeliveryDate();refreshDeliver
 function setConnection(ok,msg){$("connectionDot").classList.toggle("ok",ok);$("connectionText").textContent=msg}
 function apiUrl(action, params={}){const u=new URL(CONFIG.APPS_SCRIPT_URL);u.searchParams.set("action",action);for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));return u.href}
 async function apiWrite(payload){if(!CONFIG.APPS_SCRIPT_URL)throw new Error("URL Apps Script belum diatur.");const res=await fetch(CONFIG.APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});return res}
-function adminToken(){return clean($("adminToken")?.value)}
-function requireAdminToken(){const token=adminToken();if(!token){toast("Masukkan token admin terlebih dahulu.");return ""}return token}
-
 async function loadProducts(){if(!CONFIG.APPS_SCRIPT_URL){setConnection(false,"Mode demo · data contoh");render();return}try{const url=new URL(CONFIG.APPS_SCRIPT_URL);if(url.protocol!=="https:")throw new Error("URL API harus HTTPS");const res=await fetch(url.href+"?action=products",{cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);const data=await res.json();if(!Array.isArray(data.products))throw new Error("Format API tidak sesuai");products=data.products.map(normalise).filter(p=>p.sku&&p.name);setConnection(true,"Terhubung");render();return true}catch(err){console.error(err);setConnection(false,"Koneksi gagal · data demo");$("productGrid").innerHTML='<div class="empty">Data produk dari server gagal dimuat. Periksa koneksi atau konfigurasi API, lalu coba muat ulang.</div>';toast("Gagal memuat produk dari Google Spreadsheet.");return false}}
 
 function readEntry(){fromWhatsApp=true;$("entryWarning").textContent="Isi data pelanggan secara manual. Checkout tidak memerlukan tautan khusus dari WhatsApp.";$("checkoutButton").disabled=Object.values(cart).every(item=>!item||item.qty<=0);}
 
-
-function clearAdminForm(){editingSku=null;["aSku","aName","aCategory","aPrice","aImage"].forEach(id=>$(id).value="");$("aStock").value="0";$("aActive").value="AKTIF";$("aSku").disabled=false}
-
-function renderAdmin(){const body=$("adminRows");body.innerHTML=products.map(p=>`<tr><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.category)}</td><td>${money(p.price)}</td><td>${p.stock}</td><td>${escapeHtml(p.active)}</td><td><button class="secondary" data-edit="${escapeHtml(p.sku)}">Edit</button> <button class="secondary" data-toggle="${escapeHtml(p.sku)}">${p.active==="NONAKTIF"?"Aktifkan":"Nonaktifkan"}</button></td></tr>`).join("");body.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>editProduct(b.dataset.edit));body.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=async()=>{const token=requireAdminToken();if(!token)return;const p=products.find(x=>x.sku===b.dataset.toggle);if(!p)return;const active=p.active==="NONAKTIF"?"AKTIF":"NONAKTIF";b.disabled=true;try{await apiWrite({action:"setActive",token,sku:p.sku,active});const loaded=await loadProducts();const fresh=products.find(x=>x.sku===p.sku);if(loaded&&fresh&&fresh.active===active){renderAdmin();toast("Status produk diperbarui di Google Sheets.")}else toast("Perubahan belum terverifikasi. Periksa token dan deployment Apps Script.")}catch(err){console.error(err);toast("Gagal memperbarui status produk.")}finally{b.disabled=false}})}
-
-function editProduct(sku){const p=products.find(x=>x.sku===sku);if(!p)return;editingSku=sku;const map={aSku:p.sku,aName:p.name,aCategory:p.category,aPrice:p.price,aImage:p.image,aStock:p.stock,aActive:p.active};Object.entries(map).forEach(([id,v])=>$(id).value=v);$("aSku").disabled=true;$("adminPanel").scrollIntoView({behavior:"smooth"})}
-
-$("saveProduct").onclick=async()=>{const token=requireAdminToken();if(!token)return;const sku=clean($("aSku").value),name=clean($("aName").value),image=clean($("aImage").value),price=Number($("aPrice").value),stock=Number($("aStock").value);if(!sku||!name)return toast("SKU dan nama barang wajib diisi.");if(!Number.isFinite(price)||price<0)return toast("Harga tidak valid.");if(!Number.isInteger(stock)||stock<0)return toast("Stok harus bilangan bulat minimal 0.");if(image&&!safeImageUrl(image))return toast("URL gambar harus berupa URL HTTPS yang valid.");const p={sku,name,category:clean($("aCategory").value)||"Lainnya",price,image:safeImageUrl(image),stock,active:$("aActive").value};const wasEditing=!!editingSku;const originalSku=editingSku||sku;const btn=$("saveProduct");btn.disabled=true;try{await apiWrite({action:"saveProduct",token,product:p});const loaded=await loadProducts();const fresh=products.find(x=>x.sku===originalSku);if(loaded&&fresh&&fresh.name===p.name&&fresh.price===p.price&&fresh.stock===p.stock&&fresh.active===p.active){clearAdminForm();renderAdmin();toast(wasEditing?"Produk diperbarui di Google Sheets.":"Produk ditambahkan ke Google Sheets.")}else toast("Produk belum terverifikasi di Google Sheets. Periksa token, nama sheet, dan deployment.")}catch(err){console.error(err);toast("Gagal menyimpan produk. Periksa koneksi dan token admin.")}finally{btn.disabled=false}};
-
-$("clearProductForm").onclick=clearAdminForm;$("adminToggle").onclick=()=>{$("adminPanel").classList.toggle("show");if($("adminPanel").classList.contains("show")){renderAdmin();$("adminPanel").scrollIntoView({behavior:"smooth"})}};
-
-function downloadText(filename,text,type="text/csv;charset=utf-8"){const blob=new Blob(["\ufeff",text],{type}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href)}
-
-$("exportCsv").onclick=()=>{const fields=["sku","name","category","price","image","stock","active"];const rows=[fields,...products.map(p=>fields.map(f=>p[f]))];downloadText("produk-kdkmp.csv",rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n"));toast("File CSV diekspor.")};
-
-function parseCsv(text){const rows=[];let row=[],field="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===","){row.push(field);field=""}else if(c==="\n"){row.push(field.replace(/\r$/,""));rows.push(row);row=[];field=""}else field+=c}if(field||row.length){row.push(field.replace(/\r$/,""));rows.push(row)}return rows}
-
-$("importCsv").onchange=async e=>{const file=e.target.files[0];if(!file)return;const token=requireAdminToken();if(!token){e.target.value="";return}try{const rows=parseCsv(await file.text());if(rows.length<2)throw new Error("CSV kosong");const headers=rows.shift().map(x=>x.trim().toLowerCase());const get=(r,...keys)=>{const idx=keys.map(k=>headers.indexOf(k.toLowerCase())).find(i=>i>=0);return idx==null?"":r[idx]};const imported=[];for(const r of rows){const p=normalise({sku:get(r,"sku"),name:get(r,"name","nama barang","nama"),category:get(r,"category","kategori"),price:get(r,"price","harga"),image:get(r,"image","image_url","image"),stock:get(r,"stock","stok"),active:get(r,"active","aktif","status produk")});if(p.sku&&p.name)imported.push(p)}if(!imported.length)throw new Error("Tidak ada baris produk valid");if(imported.length>300)throw new Error("Maksimal 300 produk per impor");await apiWrite({action:"importProducts",token,products:imported});const loaded=await loadProducts();const allPresent=loaded&&imported.every(p=>products.some(x=>x.sku===p.sku));renderAdmin();toast(allPresent?`${imported.length} produk berhasil diimpor ke Google Sheets.`:"Impor dikirim, tetapi belum terverifikasi. Periksa Apps Script.")}catch(err){console.error(err);toast("CSV gagal diimpor: "+err.message)}e.target.value=""};
 
 async function useCurrentLocation(){
   const button=$("useCurrentLocation");
@@ -458,7 +404,6 @@ readEntry();loadProducts();renderCart();
    Untuk produksi tetap batasi akses deployment Apps Script dan lindungi token admin. */
 let subsidyProducts=[];
 let verifiedSubsidy={};
-let familyEditId=null;
 function jsonpSubsidy(params,timeout=12000){
   return new Promise((resolve,reject)=>{
     const cb='kdkmpSubCb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -490,17 +435,11 @@ function postSubsidyRequest(payload,timeout=15000){
   document.body.appendChild(frame);document.body.appendChild(form);form.submit();
  });
 }
-function addMemberRow(nik='',name=''){
- const wrap=document.createElement('div');wrap.className='member-row';
- wrap.innerHTML='<label class="field">NIK (16 digit)<input class="member-nik" inputmode="numeric" maxlength="16" value="'+escapeHtml(nik)+'" placeholder="NIK anggota"></label><label class="field">Nama anggota<input class="member-name" maxlength="100" value="'+escapeHtml(name)+'" placeholder="Nama sesuai data"></label><button class="secondary remove-member" type="button" aria-label="Hapus anggota">Hapus</button>';
- wrap.querySelector('.remove-member').onclick=()=>wrap.remove();$('familyMembers').appendChild(wrap);
-}
 function renderSubsidy(){renderCategories();renderProducts()}
 async function loadSubsidy(){
  if(!CONFIG.APPS_SCRIPT_URL){
    subsidyProducts=[];
    renderSubsidy();
-   renderSubsidyAdmin();
    return;
  }
  try{
@@ -508,77 +447,15 @@ async function loadSubsidy(){
    if(!d.ok)throw new Error(d.error||'Gagal memuat');
    subsidyProducts=(d.products||[]).map(p=>({...p,price:Number(p.price)||0,stock:Number(p.stock)||0,maxOrder:Number(p.maxOrder)||1,cooldownDays:Number(p.cooldownDays)||7}));
    renderSubsidy();
-   // Selalu perbarui tabel admin setelah data berhasil dimuat, tidak bergantung
-   // pada status class panel induk saat permintaan API selesai.
-   renderSubsidyAdmin();
  }catch(e){
    console.error(e);
    subsidyProducts=[];
    renderSubsidy();
-   renderSubsidyAdmin();
    toast('Barang subsidi belum dapat dimuat. Periksa koneksi dan URL Apps Script.');
  }
 }
 function showSubsidyIdentity(sku){const box=document.querySelector(`[data-subsidy-box="${CSS.escape(sku)}"]`);if(!box)return;box.innerHTML=`<div class="subsidy-identity-row"><input class="buyqty subsidy-identity-input" inputmode="numeric" maxlength="16" placeholder="Isi NIK / No. KK (16 digit)" aria-label="NIK atau nomor KK" data-subsidy-identity="${escapeHtml(sku)}"><button class="add subsidy-check-btn" type="button" data-subsidy-check="${escapeHtml(sku)}" aria-label="Cek kuota" title="Cek kuota">Cek</button></div><small class="subsidy-verify-hint">Masukkan NIK atau No. KK terdaftar, lalu tekan Cek.</small>`;box.querySelector('[data-subsidy-check]').onclick=()=>verifySubsidyInline(sku);box.querySelector('input').focus()}
 async function verifySubsidyInline(sku){const input=document.querySelector(`[data-subsidy-identity="${CSS.escape(sku)}"]`);if(!input)return;const identity=input.value.replace(/\D/g,'');if(!/^\d{16}$/.test(identity))return toast('NIK atau nomor KK harus terdiri dari 16 digit.');const p=subsidyProducts.find(x=>x.sku===sku);if(!p)return;const btn=document.querySelector(`[data-subsidy-check="${CSS.escape(sku)}"]`);if(btn){btn.disabled=true;btn.textContent='Memeriksa…'}try{const result=await postSubsidyRequest({action:'verifySubsidy',sku,identity,qty:1});if(!result.ok)throw new Error(result.error||'Verifikasi gagal.');if(!result.eligible){toast(result.message||'Kuota keluarga sudah digunakan.');if(btn){btn.disabled=false;btn.textContent='Cek'}return}const fresh=result.product||p;const qty=Math.min(Number(fresh.maxOrder)||1,Number(fresh.stock)||0);if(qty<1)throw new Error('Stok barang subsidi habis.');verifiedSubsidy[sku]={identity,qty};renderProducts();toast(`Verifikasi berhasil. Kuota pembelian ${qty} unit tersedia; tekan ＋ Beli untuk memasukkan ke keranjang.`)}catch(e){console.error(e);toast(e.message||'Verifikasi subsidi gagal.');if(btn){btn.disabled=false;btn.textContent='Cek'}}}
-function renderSubsidyAdmin(){
- const rows=$('subsidyAdminRows');if(rows)rows.innerHTML=subsidyProducts.map(p=>`<tr><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.name)}</td><td>${money(p.price)}</td><td>${p.stock}</td><td>${p.maxOrder}/${p.cooldownDays} hari</td><td>${escapeHtml(p.active)}</td><td><button class="secondary" data-sub-edit="${escapeHtml(p.sku)}">Edit</button> <button class="secondary" data-sub-toggle="${escapeHtml(p.sku)}">${p.active==='NONAKTIF'?'Aktifkan':'Nonaktifkan'}</button></td></tr>`).join('');
- rows?.querySelectorAll('[data-sub-edit]').forEach(b=>b.onclick=()=>{const p=subsidyProducts.find(x=>x.sku===b.dataset.subEdit);if(!p)return;[['sSku',p.sku],['sName',p.name],['sCategory',p.category],['sPrice',p.price],['sImage',p.image],['sStock',p.stock],['sCooldown',p.cooldownDays],['sMaxOrder',p.maxOrder],['sActive',p.active]].forEach(([id,v])=>$(id).value=v);$('sSku').disabled=true;$('subsidyProductPanel').scrollIntoView({behavior:'smooth'})});
- rows?.querySelectorAll('[data-sub-toggle]').forEach(b=>b.onclick=async()=>{const token=clean($('subsidyProductToken').value);if(!token)return toast('Masukkan token pada panel barang subsidi.');const p=subsidyProducts.find(x=>x.sku===b.dataset.subToggle);if(!p)return;try{await apiWrite({action:'setSubsidyProductActive',token,sku:p.sku,active:p.active==='AKTIF'?'NONAKTIF':'AKTIF'});toast('Permintaan perubahan status dikirim. Muat ulang untuk memeriksa hasil.');setTimeout(loadSubsidy,1000)}catch(e){toast('Gagal mengubah status barang subsidi.')}});
-}
-$('addFamilyMember')?.addEventListener('click',()=>addMemberRow());
-$('saveSubsidyProduct')?.addEventListener('click',async()=>{
- const token=clean($('subsidyProductToken').value);if(!token)return toast('Masukkan token pada panel barang subsidi.');
- const p={sku:clean($('sSku').value),name:clean($('sName').value),category:clean($('sCategory').value)||'Subsidi',price:Number($('sPrice').value),image:clean($('sImage').value),stock:Number($('sStock').value),cooldownDays:Number($('sCooldown').value),maxOrder:Number($('sMaxOrder').value),active:$('sActive').value};
- if(!p.sku||!p.name||!Number.isFinite(p.price)||p.price<0||!Number.isInteger(p.stock)||p.stock<0||!Number.isInteger(p.cooldownDays)||p.cooldownDays<1||!Number.isInteger(p.maxOrder)||p.maxOrder<1)return toast('Periksa SKU, nama, harga, stok, cooldown, dan batas pembelian.');
- if(p.image&&!safeImageUrl(p.image))return toast('URL gambar harus HTTPS.');
- try{await apiWrite({action:'saveSubsidyProduct',token,product:p});toast('Permintaan simpan dikirim. Muat ulang untuk memeriksa hasil.');setTimeout(loadSubsidy,1200)}catch(e){toast('Gagal mengirim data subsidi.')}
-});
-$('reloadSubsidy')?.addEventListener('click',loadSubsidy);
-$('saveFamily')?.addEventListener('click',async()=>{
- const token=clean($('recipientToken').value);if(!token)return toast('Masukkan token pada panel penerima subsidi.');
- const kk=$('sFamilyKK').value.replace(/\D/g,'');const familyName=clean($('sFamilyName').value);
- const members=[...$('familyMembers').querySelectorAll('.member-row')].map(r=>({nik:r.querySelector('.member-nik').value.replace(/\D/g,''),name:clean(r.querySelector('.member-name').value)}));
- if(!/^\d{16}$/.test(kk))return toast('Nomor KK harus 16 digit.');
- if(!members.length||members.some(m=>!/^\d{16}$/.test(m.nik)||!m.name))return toast('Setiap anggota harus memiliki NIK 16 digit dan nama.');
- if(new Set(members.map(m=>m.nik)).size!==members.length)return toast('Ada NIK anggota yang duplikat.');
- try{
-  const result=await postSubsidyRequest({action:'saveSubsidyFamily',token,kk,familyName,members,replaceFamilyId:familyEditId||''});
-  if(!result.ok)throw new Error(result.error||'Gagal menyimpan keluarga.');
-  familyEditId=null;
-  $('sFamilyKK').value='';$('sFamilyName').value='';$('familyMembers').innerHTML='';
-  toast('Data penerima berhasil disimpan dalam bentuk terlindungi.');
-  loadFamilies();
- }catch(e){toast(e.message||'Gagal mengirim data keluarga.')}
-});
-async function loadFamilies(){
- try{
-  const d=await postSubsidyRequest({action:'subsidyFamilies',token:clean($('recipientToken').value)});
-  if(!d.ok)throw new Error(d.error||'Gagal memuat penerima');
-  const rows=$('familyAdminRows');
-  rows.innerHTML=(d.families||[]).map(f=>`<tr><td>${escapeHtml(f.kkMasked)}</td><td>${escapeHtml(f.familyName||'-')}</td><td>${f.memberCount}</td><td>${escapeHtml(f.active||'AKTIF')}</td><td><button class="secondary" data-family-edit="${escapeHtml(f.familyId)}">Edit data</button> <button class="secondary" data-family-toggle="${escapeHtml(f.familyId)}">${f.active==='NONAKTIF'?'Aktifkan':'Nonaktifkan'}</button></td></tr>`).join('')||'<tr><td colspan="5">Belum ada penerima subsidi.</td></tr>';
-  rows.querySelectorAll('[data-family-edit]').forEach(b=>b.onclick=()=>{
-   const f=(d.families||[]).find(x=>x.familyId===b.dataset.familyEdit);if(!f)return;
-   familyEditId=f.familyId;$('sFamilyKK').value='';$('sFamilyName').value=f.familyName||'';$('familyMembers').innerHTML='';addMemberRow();
-   toast('Mode edit: masukkan kembali nomor KK yang sama dan seluruh NIK anggota. NIK lama tidak ditampilkan.');
-   $('subsidyRecipientPanel').scrollIntoView({behavior:'smooth'});
-  });
-  rows.querySelectorAll('[data-family-toggle]').forEach(b=>b.onclick=async()=>{
-   const token=clean($('recipientToken').value);if(!token)return toast('Masukkan token panel penerima subsidi.');
-   try{
-    const result=await postSubsidyRequest({action:'setSubsidyFamilyActive',token,familyId:b.dataset.familyToggle,active:b.textContent.trim()==='Aktifkan'?'AKTIF':'NONAKTIF'});
-    if(!result.ok)throw new Error(result.error||'Gagal mengubah status.');
-    toast('Status penerima berhasil diperbarui.');loadFamilies();
-   }catch(e){toast(e.message||'Gagal mengubah status penerima.')}
-  });
- }catch(e){console.error(e);toast(e.message||'Tidak dapat memuat data penerima. Pastikan Apps Script sudah diperbarui dan token panel diisi.')}
-}
-$('clearSubsidyProduct')?.addEventListener('click',()=>{['sSku','sName','sCategory','sPrice','sImage'].forEach(id=>$(id).value='');$('sStock').value='0';$('sCooldown').value='7';$('sMaxOrder').value='1';$('sActive').value='AKTIF';$('sSku').disabled=false});
-$('clearFamily')?.addEventListener('click',()=>{familyEditId=null;$('sFamilyKK').value='';$('sFamilyName').value='';$('familyMembers').innerHTML='';});
-$('reloadFamilies')?.addEventListener('click',loadFamilies);
-$('subsidyProductToggle')?.addEventListener('click',()=>{$('subsidyProductPanel').classList.toggle('show');if($('subsidyProductPanel').classList.contains('show')){loadSubsidy();$('subsidyProductPanel').scrollIntoView({behavior:'smooth'})}});
-$('recipientToggle')?.addEventListener('click',()=>{$('subsidyRecipientPanel').classList.toggle('show');if($('subsidyRecipientPanel').classList.contains('show')){$('subsidyRecipientPanel').scrollIntoView({behavior:'smooth'});loadFamilies()}});
-if($('adminToggle'))$('adminToggle').addEventListener('click',()=>{setTimeout(()=>{if($('adminPanel').classList.contains('show')){renderAdmin();$('adminPanel').scrollIntoView({behavior:'smooth'})}},100)});
 loadSubsidy();
 
 </script>
