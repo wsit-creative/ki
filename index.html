@@ -79,6 +79,7 @@ body{background:linear-gradient(180deg,#fff 0%,#fff8f8 44%,#fff 100%);color:var(
 @media(max-width:620px){.footer-inner{grid-template-columns:1fr;gap:26px;padding:27px 16px 22px}.footer-map{height:230px}.footer-bottom{padding:14px 16px;align-items:flex-start;flex-direction:column;gap:5px}.footer-brand strong{font-size:15px}}
 
 .contact-float{position:fixed;right:20px;bottom:100px;z-index:30;display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:999px;background:var(--green);color:#fff;font-weight:800;box-shadow:0 8px 24px #123b2a35;transition:transform .2s,box-shadow .2s}.contact-float:hover{transform:translateY(-3px);box-shadow:0 12px 28px #123b2a45}.contact-float span:first-child{font-size:18px;line-height:1}@media(max-width:620px){.contact-float{right:14px;bottom:94px;padding:12px;border-radius:50%;width:48px;height:48px;justify-content:center}.contact-float-label{display:none}}\n</style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body>
 <header class="topbar">
@@ -180,7 +181,8 @@ body{background:linear-gradient(180deg,#fff 0%,#fff8f8 44%,#fff 100%);color:var(
 
 const CONFIG={
 
- APPS_SCRIPT_URL:"https://script.google.com/macros/s/AKfycbwW06yujJPsK8F8T0ZjIXdELLesRtAEV7s3kDR3hhQcPdM2NuHq--j-95RLhhfyYVo/exec", // Pastikan ini URL /exec deployment terbaru.
+ APPS_SCRIPT_URL:"https://script.google.com/macros/s/AKfycbzIKnWru6KZFrqRCo150VtLNNtmloa32G8PzlTeFdwCF2E6n_VjK8HY3iA1T3T-dH0/exec", // Pastikan ini URL /exec deployment terbaru.
+ TURNSTILE_SITE_KEY:"0x4AAAAAAFXlmV_KtSq6VqB9", // Site key publik dari Cloudflare Turnstile.
 
  ADMIN_WHATSAPP:"6282338804175", // GANTI dengan nomor WhatsApp resmi KDKMP, format 62...
 
@@ -352,7 +354,7 @@ function apiUrl(action, params={}){const u=new URL(CONFIG.APPS_SCRIPT_URL);u.sea
 async function apiWrite(payload){if(!CONFIG.APPS_SCRIPT_URL)throw new Error("URL Apps Script belum diatur.");const res=await fetch(CONFIG.APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});return res}
 $("contactFloat").addEventListener("click",()=> $("contact").scrollIntoView({behavior:"smooth",block:"start"}));
 
-async function loadProducts(){if(!CONFIG.APPS_SCRIPT_URL){setConnection(false,"Mode demo · data contoh");render();return}try{const url=new URL(CONFIG.APPS_SCRIPT_URL);if(url.protocol!=="https:")throw new Error("URL API harus HTTPS");const res=await fetch(url.href+"?action=products",{cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);const data=await res.json();if(!Array.isArray(data.products))throw new Error("Format API tidak sesuai");products=data.products.map(normalise).filter(p=>p.sku&&p.name);setConnection(true,"Terhubung");render();return true}catch(err){console.error(err);setConnection(false,"Koneksi gagal · data demo");$("productGrid").innerHTML='<div class="empty">Data produk dari server gagal dimuat. Periksa koneksi atau konfigurasi API, lalu coba muat ulang.</div>';toast("Gagal memuat produk dari Google Spreadsheet.");return false}}
+async function loadProducts(){if(!CONFIG.APPS_SCRIPT_URL){setConnection(false,"Mode demo · data contoh");if(!shouldDeferCatalogRender())render();return}try{const url=new URL(CONFIG.APPS_SCRIPT_URL);if(url.protocol!=="https:")throw new Error("URL API harus HTTPS");const res=await fetch(url.href+"?action=products",{cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);const data=await res.json();if(!Array.isArray(data.products))throw new Error("Format API tidak sesuai");products=data.products.map(normalise).filter(p=>p.sku&&p.name);setConnection(true,"Terhubung");if(!shouldDeferCatalogRender())render();return true}catch(err){console.error(err);setConnection(false,"Koneksi gagal · data demo");if(!shouldDeferCatalogRender())$("productGrid").innerHTML='<div class="empty">Data produk dari server gagal dimuat. Periksa koneksi atau konfigurasi API, lalu coba muat ulang.</div>';toast("Gagal memuat produk dari Google Spreadsheet.");return false}}
 
 function readEntry(){fromWhatsApp=true;$("entryWarning").textContent="Isi data pelanggan secara manual. Checkout tidak memerlukan tautan khusus dari WhatsApp.";$("checkoutButton").disabled=Object.values(cart).every(item=>!item||item.qty<=0);}
 
@@ -427,16 +429,21 @@ async function useCurrentLocation(){
 $("useCurrentLocation").addEventListener("click",useCurrentLocation);
 
 readEntry();loadProducts();renderCart();
-// Sinkronisasi stok berkala untuk semua pelanggan yang sedang membuka katalog.
+// Sinkronisasi stok berkala. Tunda selama verifikasi/CAPTCHA agar widget tidak dihancurkan oleh render ulang.
 let stockRefreshBusy=false;
-setInterval(async()=>{if(stockRefreshBusy||document.visibilityState==="hidden")return;stockRefreshBusy=true;try{await Promise.all([loadProducts(),loadSubsidy()]);}finally{stockRefreshBusy=false}},8000);
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){loadProducts();loadSubsidy();}});
+setInterval(async()=>{if(stockRefreshBusy||document.visibilityState==="hidden"||shouldDeferCatalogRender())return;stockRefreshBusy=true;try{await Promise.all([loadProducts(),loadSubsidy()]);}finally{stockRefreshBusy=false}},8000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!shouldDeferCatalogRender()){loadProducts();loadSubsidy();}});
 
 /* === KDKMP SUBSIDI ADD-ON ===
    Identitas dikirim melalui POST, bukan query URL. Respons dibaca melalui iframe bridge.
    Untuk produksi tetap batasi akses deployment Apps Script dan lindungi token admin. */
 let subsidyProducts=[];
 let verifiedSubsidy={};
+let subsidyVerificationInProgress=false;
+function shouldDeferCatalogRender(){
+ if(subsidyVerificationInProgress)return true;
+ return Array.from(document.querySelectorAll('[data-captcha-box]')).some(box=>!box.hidden);
+}
 function jsonpSubsidy(params,timeout=12000){
   return new Promise((resolve,reject)=>{
     const cb='kdkmpSubCb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -464,11 +471,11 @@ function postSubsidyRequest(payload,timeout=15000){
    cleanup();resolve(data.result);
   };
   window.addEventListener('message',onMessage);
-  timer=setTimeout(()=>{cleanup();reject(new Error('Waktu permintaan habis. Coba lagi.'))},timeout);
+  timer=setTimeout(()=>{cleanup();reject(new Error('Server tidak merespons dalam 15 detik. Pastikan URL Apps Script adalah deployment /exec terbaru dan aksesnya Siapa saja.'))},timeout);
   document.body.appendChild(frame);document.body.appendChild(form);form.submit();
  });
 }
-function renderSubsidy(){renderCategories();renderProducts()}
+function renderSubsidy(){if(shouldDeferCatalogRender())return;renderCategories();renderProducts()}
 async function loadSubsidy(){
  if(!CONFIG.APPS_SCRIPT_URL){
    subsidyProducts=[];
@@ -482,13 +489,48 @@ async function loadSubsidy(){
    renderSubsidy();
  }catch(e){
    console.error(e);
-   subsidyProducts=[];
-   renderSubsidy();
-   toast('Barang subsidi belum dapat dimuat. Periksa koneksi dan URL Apps Script.');
+   if(!shouldDeferCatalogRender()){
+     subsidyProducts=[];
+     renderSubsidy();
+     toast('Barang subsidi belum dapat dimuat. Periksa koneksi dan URL Apps Script.');
+   }
  }
 }
-function showSubsidyIdentity(sku){const box=document.querySelector(`[data-subsidy-box="${CSS.escape(sku)}"]`);if(!box)return;box.innerHTML=`<div class="subsidy-identity-row"><input class="buyqty subsidy-identity-input" inputmode="numeric" maxlength="16" placeholder="Isi NIK / No. KK (16 digit)" aria-label="NIK atau nomor KK" data-subsidy-identity="${escapeHtml(sku)}"><button class="add subsidy-check-btn" type="button" data-subsidy-check="${escapeHtml(sku)}" aria-label="Cek kuota" title="Cek kuota">Cek</button></div><small class="subsidy-verify-hint">Masukkan NIK atau No. KK terdaftar, lalu tekan Cek.</small>`;box.querySelector('[data-subsidy-check]').onclick=()=>verifySubsidyInline(sku);box.querySelector('input').focus()}
-async function verifySubsidyInline(sku){const input=document.querySelector(`[data-subsidy-identity="${CSS.escape(sku)}"]`);if(!input)return;const identity=input.value.replace(/\D/g,'');if(!/^\d{16}$/.test(identity))return toast('NIK atau nomor KK harus terdiri dari 16 digit.');const p=subsidyProducts.find(x=>x.sku===sku);if(!p)return;const btn=document.querySelector(`[data-subsidy-check="${CSS.escape(sku)}"]`);if(btn){btn.disabled=true;btn.textContent='Memeriksa…'}try{const result=await postSubsidyRequest({action:'verifySubsidy',sku,identity,qty:1});if(!result.ok)throw new Error(result.error||'Verifikasi gagal.');if(!result.eligible){toast(result.message||'Kuota keluarga sudah digunakan.');if(btn){btn.disabled=false;btn.textContent='Cek'}return}const fresh=result.product||p;const qty=Math.min(Number(fresh.maxOrder)||1,Number(fresh.stock)||0);if(qty<1)throw new Error('Stok barang subsidi habis.');verifiedSubsidy[sku]={identity,qty};renderProducts();toast(`Verifikasi berhasil. Kuota pembelian ${qty} unit tersedia; tekan ＋ Beli untuk memasukkan ke keranjang.`)}catch(e){console.error(e);toast(e.message||'Verifikasi subsidi gagal.');if(btn){btn.disabled=false;btn.textContent='Cek'}}}
+function showSubsidyIdentity(sku){const box=document.querySelector(`[data-subsidy-box="${CSS.escape(sku)}"]`);if(!box)return;box.innerHTML=`<div class="subsidy-identity-row"><input class="buyqty subsidy-identity-input" inputmode="numeric" maxlength="16" placeholder="Isi NIK / No. KK (16 digit)" aria-label="NIK atau nomor KK" data-subsidy-identity="${escapeHtml(sku)}"><button class="add subsidy-check-btn" type="button" data-subsidy-check="${escapeHtml(sku)}" aria-label="Cek kuota" title="Cek kuota">Cek</button></div><div class="subsidy-captcha" data-captcha-box="${escapeHtml(sku)}" hidden><small class="subsidy-verify-hint">Selesaikan CAPTCHA untuk melanjutkan pengecekan.</small><div class="cf-turnstile" data-sitekey="${escapeHtml(CONFIG.TURNSTILE_SITE_KEY)}" data-callback="kdkmpTurnstileSolved" data-expired-callback="kdkmpTurnstileExpired"></div></div><small class="subsidy-verify-hint">Masukkan NIK atau No. KK terdaftar, lalu tekan Cek.</small>`;box.querySelector('[data-subsidy-check]').onclick=()=>verifySubsidyInline(sku);box.querySelector('input').focus()}
+let kdkmpTurnstileToken='';
+let kdkmpTurnstileWidgetId=null;
+let kdkmpTurnstileSku='';
+window.kdkmpTurnstileSolved=function(token){kdkmpTurnstileToken=token||''};
+window.kdkmpTurnstileExpired=function(){kdkmpTurnstileToken=''};
+function kdkmpClientId(){try{let id=sessionStorage.getItem('kdkmp_verify_client');if(!id){id=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));sessionStorage.setItem('kdkmp_verify_client',id)}return id}catch(e){return 'session-'+Date.now()}}
+function showKdkmpCaptcha(sku){const box=document.querySelector(`[data-captcha-box="${CSS.escape(sku)}"]`);if(!box)return;box.hidden=false;kdkmpTurnstileSku=sku;kdkmpTurnstileToken='';if(!CONFIG.TURNSTILE_SITE_KEY||CONFIG.TURNSTILE_SITE_KEY.includes('GANTI_DENGAN')){toast('CAPTCHA belum dikonfigurasi. Admin perlu memasukkan Site Key Cloudflare.');return}const widget=box.querySelector('.cf-turnstile');if(window.turnstile&&widget&&!widget.dataset.rendered){kdkmpTurnstileWidgetId=window.turnstile.render(widget,{sitekey:CONFIG.TURNSTILE_SITE_KEY,callback:window.kdkmpTurnstileSolved,'expired-callback':window.kdkmpTurnstileExpired});widget.dataset.rendered='1'}else if(!window.turnstile){toast('CAPTCHA sedang dimuat. Coba beberapa detik lagi.')}}
+async function verifySubsidyInline(sku){
+ const input=document.querySelector(`[data-subsidy-identity="${CSS.escape(sku)}"]`);
+ if(!input||subsidyVerificationInProgress)return;
+ const identity=input.value.replace(/\D/g,'');
+ if(!/^\d{16}$/.test(identity))return toast('NIK atau nomor KK harus terdiri dari 16 digit.');
+ const p=subsidyProducts.find(x=>x.sku===sku);if(!p)return;
+ const btn=document.querySelector(`[data-subsidy-check="${CSS.escape(sku)}"]`);
+ subsidyVerificationInProgress=true;
+ if(btn){btn.disabled=true;btn.textContent='Memeriksa…'}
+ try{
+   const payload={action:'verifySubsidy',sku,identity,qty:1,clientId:kdkmpClientId()};
+   if(kdkmpTurnstileSku===sku&&kdkmpTurnstileToken)payload.captchaToken=kdkmpTurnstileToken;
+   const result=await postSubsidyRequest(payload);
+   if(result.captchaRequired){if(btn){btn.disabled=false;btn.textContent='Cek'}showKdkmpCaptcha(sku);return}
+   if(!result.ok)throw new Error(result.error||'Verifikasi gagal.');
+   if(!result.eligible){toast(result.message||'Kuota keluarga sudah digunakan.');if(btn){btn.disabled=false;btn.textContent='Cek'}return}
+   const fresh=result.product||p;const qty=Math.min(Number(fresh.maxOrder)||1,Number(fresh.stock)||0);
+   if(qty<1)throw new Error('Stok barang subsidi habis.');
+   verifiedSubsidy[sku]={identity,qty};
+   renderProducts();toast(`Verifikasi berhasil. Kuota pembelian ${qty} unit tersedia; tekan ＋ Beli untuk memasukkan ke keranjang.`);
+ }catch(e){
+   console.error(e);toast(e.message||'Verifikasi subsidi gagal.');
+   if(btn&&btn.isConnected){btn.disabled=false;btn.textContent='Cek'}
+ }finally{
+   subsidyVerificationInProgress=false;
+ }
+}
 loadSubsidy();
 
 </script>
