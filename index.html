@@ -301,7 +301,7 @@ function catalogProducts(){
  });
 }
 
-function filteredProducts(){let arr=catalogProducts().filter(p=>(category==="Semua"||p.category===category)&&(!query||[p.name,p.sku,p.brand,p.category,p.subcategory].join(" ").toLocaleLowerCase("id").includes(query.toLocaleLowerCase("id"))));const sort=$("sortSelect").value;if(sort==="name")arr.sort((a,b)=>a.name.localeCompare(b.name,"id"));else if(sort==="low")arr.sort((a,b)=>a.price-b.price);else if(sort==="high")arr.sort((a,b)=>b.price-a.price);else{const counts=readPopularity();arr.sort((a,b)=>(Number(counts[b.catalogKey])||0)-(Number(counts[a.catalogKey])||0)||a.name.localeCompare(b.name,"id"))}return arr}
+function filteredProducts(){let arr=catalogProducts().filter(p=>(category==="Semua"||p.category===category)&&(!query||[p.name,p.sku,p.brand,p.category,p.subcategory].join(" ").toLocaleLowerCase("id").includes(query.toLocaleLowerCase("id"))));const sort=$("sortSelect").value;const counts=readPopularity();arr.sort((a,b)=>{const stockA=Number(a.stock)>0?1:0,stockB=Number(b.stock)>0?1:0;if(stockA!==stockB)return stockB-stockA;if(sort==="name")return a.name.localeCompare(b.name,"id");if(sort==="low")return a.price-b.price;if(sort==="high")return b.price-a.price;return (Number(counts[b.catalogKey])||0)-(Number(counts[a.catalogKey])||0)||a.name.localeCompare(b.name,"id")});return arr}
 
 function renderCategories(){const cats=["Semua",...new Set(catalogProducts().map(p=>p.category).filter(Boolean))];$("categories").innerHTML=cats.map(c=>`<button class="cat ${category===c?"active":""}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join("");$("categories").querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{category=b.dataset.cat;page=1;render()})}
 
